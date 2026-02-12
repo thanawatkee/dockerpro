@@ -1,3 +1,3 @@
-docker build -t image-classifier-web
+docker build -t imageapp .
 
-docker run -d -p 8080:80 --name image-classifier-web image-classifier-web
+docker run -p 80:80 imageapp
