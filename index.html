@@ -1,11 +1,9 @@
-indwx.html
-
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Classifier with Ollama</title>
+    <title>Image Analyzer with Ollama</title>
     <style>
         * {
             margin: 0;
@@ -21,7 +19,7 @@ indwx.html
         }
         
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
@@ -75,7 +73,61 @@ indwx.html
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         
-        button {
+        .question-area {
+            display: none;
+            margin: 20px 0;
+        }
+        
+        .question-area label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        #questionInput {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        #questionInput:focus {
+            border-color: #667eea;
+        }
+        
+        .quick-questions {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .quick-question-btn {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #555;
+        }
+        
+        .quick-question-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        button.analyze-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
@@ -89,15 +141,33 @@ indwx.html
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         
-        button:hover {
+        button.analyze-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
         }
         
-        button:disabled {
+        button.analyze-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+        
+        .clear-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px auto;
+            display: none;
+        }
+        
+        .clear-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
         }
         
         .result {
@@ -117,6 +187,7 @@ indwx.html
         .result p {
             color: #333;
             line-height: 1.6;
+            white-space: pre-wrap;
         }
         
         .loading {
@@ -149,30 +220,92 @@ indwx.html
             display: none;
             color: #cc0000;
         }
+
+        .model-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .model-selector label {
+            margin-right: 10px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .model-selector select {
+            padding: 8px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+            
+            .quick-questions {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>??? Image Classifier with Ollama</h1>
+        <h1>๐–ผ๏ธ Image Analyzer with Ollama</h1>
+        
+        <div class="model-selector">
+            <label for="modelSelect">๐ค– Model:</label>
+            <select id="modelSelect">
+                <option value="llava:7b">LLaVA 7B</option>
+                <option value="llava:13b">LLaVA 13B</option>
+                <option value="llava:34b">LLaVA 34B</option>
+                <option value="bakllava">BakLLaVA</option>
+            </select>
+        </div>
         
         <div class="upload-area" id="uploadArea">
-            <div class="upload-icon">??</div>
-            <p>คลิกหรือลากไฟล์รูปภาพมาวางที่นี่</p>
-            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">รองรับ: PNG, JPG, JPEG</p>
+            <div class="upload-icon">๐“ค</div>
+            <p>Click or drag and drop your image here</p>
+            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">Supported formats: PNG, JPG, JPEG</p>
             <input type="file" id="fileInput" accept="image/png, image/jpeg, image/jpg">
         </div>
         
         <img id="preview" alt="Preview">
         
-        <button id="classifyBtn" style="display: none;">?? วิเคราะห์รูปภาพ</button>
+        <div class="question-area" id="questionArea">
+            <label for="questionInput">โ“ Ask a question about this image:</label>
+            <textarea 
+                id="questionInput" 
+                placeholder="e.g., What objects are in this image? Describe the colors and mood..."
+            ></textarea>
+            
+            <div class="quick-questions">
+                <button class="quick-question-btn" data-question="Describe this image in detail">Describe in detail</button>
+                <button class="quick-question-btn" data-question="What objects can you see?">What objects?</button>
+                <button class="quick-question-btn" data-question="What are the main colors?">Main colors?</button>
+                <button class="quick-question-btn" data-question="What is the mood or atmosphere?">Mood/Atmosphere?</button>
+                <button class="quick-question-btn" data-question="Is there any text in this image?">Any text?</button>
+                <button class="quick-question-btn" data-question="What is happening in this image?">What's happening?</button>
+            </div>
+        </div>
+        
+        <button class="analyze-btn" id="analyzeBtn" style="display: none;">๐” Analyze Image</button>
+        <button class="clear-btn" id="clearBtn">๐—‘๏ธ Clear</button>
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p style="margin-top: 10px; color: #667eea;">กำลังวิเคราะห์รูปภาพ...</p>
+            <p style="margin-top: 10px; color: #667eea;">Analyzing image...</p>
         </div>
         
         <div class="result" id="result">
-            <h3>ผลการวิเคราะห์:</h3>
+            <h3>Analysis Result:</h3>
             <p id="resultText"></p>
         </div>
         
@@ -182,4 +315,3 @@ indwx.html
     <script src="app.js"></script>
 </body>
 </html>
-
